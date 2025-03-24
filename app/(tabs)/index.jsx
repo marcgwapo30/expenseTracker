@@ -5,6 +5,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import RNPickerSelect from "react-native-picker-select";
 import { Calendar } from 'react-native-calendars';
 import moment from 'moment';
+import { Picker } from "@react-native-picker/picker"; // New import
+
 
 // ✅ Async Storage Helper Functions
 const STORAGE_KEY = "expenses";
@@ -99,7 +101,7 @@ export default function ExpenseTracker() {
   const [permanentBalance, setPermanentBalance] = useState(0);
   const [permanentTotalIncome, setPermanentTotalIncome] = useState(0);
 
-  // ✅ Load expenses on mount
+  // Load expenses, balance and total income on mount
   useEffect(() => {
     const loadData = async () => {
       const [loadedExpenses, loadedBalance, loadedTotalIncome] = await Promise.all([
@@ -114,12 +116,10 @@ export default function ExpenseTracker() {
     loadData();
   }, []);
 
-  // ✅ Handle input changes
   const handleChange = (name, value) => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Updated handleDateChange
   const handleDateChange = (date) => {
     setShowCalendar(false);
     setForm(prev => ({
@@ -128,12 +128,10 @@ export default function ExpenseTracker() {
     }));
   };
 
-  // Format date for display
   const formatDisplayDate = (date) => {
     return date ? moment(date).format('MMMM D, YYYY') : 'Select Date';
   };
 
-  // Fixed delete function
   const deleteExpense = useCallback((id) => {
     Alert.alert(
       "Delete Transaction",
@@ -145,11 +143,9 @@ export default function ExpenseTracker() {
           style: "destructive",
           onPress: async () => {
             try {
-              // Only remove from expenses list, don't affect balance
               const updatedExpenses = expenses.filter(expense => expense.id !== id);
               await saveExpensesToStorage(updatedExpenses);
               setExpenses(updatedExpenses);
-              
               Alert.alert("Success", "Transaction deleted from history");
             } catch (error) {
               console.error('Delete error:', error);
@@ -161,7 +157,6 @@ export default function ExpenseTracker() {
     );
   }, [expenses]);
 
-  // Fixed addOrUpdateExpense function
   const addOrUpdateExpense = useCallback(async () => {
     const { date, description, category, amount, paymentMethod, type } = form;
     
@@ -182,39 +177,32 @@ export default function ExpenseTracker() {
         type: type || 'expense'
       };
 
-      // Update expenses
-    const updatedExpenses = editingId
+      const updatedExpenses = editingId
         ? expenses.map(expense => 
             expense.id === editingId ? newExpense : expense
           )
         : [...expenses, newExpense];
 
-      // Calculate new balances
       let newBalance = permanentBalance;
       let newTotalIncome = permanentTotalIncome;
 
       if (type === 'income') {
-        // For income, add to both balance and total income
         newBalance += parsedAmount;
         newTotalIncome += parsedAmount;
       } else {
-        // For expense, only subtract from balance
         newBalance -= parsedAmount;
       }
 
-      // Save all data
       await Promise.all([
         saveExpensesToStorage(updatedExpenses),
         saveBalanceToStorage(newBalance),
         saveTotalIncomeToStorage(newTotalIncome)
       ]);
 
-      // Update all state
-    setExpenses(updatedExpenses);
+      setExpenses(updatedExpenses);
       setPermanentBalance(newBalance);
       setPermanentTotalIncome(newTotalIncome);
 
-      // Reset form
       setForm({
         date: "",
         description: "",
@@ -223,7 +211,7 @@ export default function ExpenseTracker() {
         paymentMethod: "",
         type: "expense"
       });
-    setEditingId(null);
+      setEditingId(null);
 
       Alert.alert(
         "Success", 
@@ -237,7 +225,6 @@ export default function ExpenseTracker() {
     }
   }, [form, expenses, permanentBalance, permanentTotalIncome, editingId]);
 
-  // ✅ Edit Expense
   const editExpense = (expense) => {
     try {
       setForm({
@@ -245,17 +232,15 @@ export default function ExpenseTracker() {
         amount: expense.amount.toString(),
         type: expense.type || 'expense'
       });
-    setEditingId(expense.id);
+      setEditingId(expense.id);
     } catch (error) {
       Alert.alert('Error', 'Failed to edit transaction');
       console.error('Edit error:', error);
     }
   };
 
-  // ✅ Compute total amount efficiently
   const totalAmount = useMemo(() => expenses.reduce((sum, { amount }) => sum + amount, 0), [expenses]);
 
-  // Update the expense list rendering
   const renderExpenseItem = useCallback(({ item }) => (
     <ExpenseItem>
       <ExpenseText>
@@ -278,17 +263,15 @@ export default function ExpenseTracker() {
     </ExpenseItem>
   ), []);
 
-  // Add modal close handler
   const handleCloseCalendar = () => {
     setShowCalendar(false); 
   };
 
-  // Add backdrop press handler
   const handleBackdropPress = () => {
     setShowCalendar(false);
   };
 
-  // Add income categories
+  // Income and Expense Categories
   const INCOME_CATEGORIES = [
     { label: "Salary 💰", value: "Salary" },
     { label: "Freelance 💻", value: "Freelance" },
@@ -297,7 +280,6 @@ export default function ExpenseTracker() {
     { label: "Other 🔖", value: "Other" },
   ];
 
-  // Update expense categories
   const EXPENSE_CATEGORIES = [
     { label: "Travel ✈️", value: "Travel" },
     { label: "Food 🍕", value: "Food" },
@@ -305,7 +287,6 @@ export default function ExpenseTracker() {
     { label: "Other 🔖", value: "Other" },
   ];
 
-  // Update the total calculations
   const totalIncome = useMemo(() => 
     expenses
       .filter(item => item.type === 'income')
@@ -320,7 +301,6 @@ export default function ExpenseTracker() {
     [expenses]
   );
 
-  // First, add a reset balance function
   const resetBalance = useCallback(async () => {
     Alert.alert(
       "Reset Balance",
@@ -332,7 +312,6 @@ export default function ExpenseTracker() {
           style: "destructive",
           onPress: async () => {
             try {
-              // Reset balance to 0
               await saveBalanceToStorage(0);
               setPermanentBalance(0);
               Alert.alert("Success", "Balance has been reset to 0");
@@ -350,7 +329,7 @@ export default function ExpenseTracker() {
       <Container>
       <ScrollContainer>
         <HeaderSection>
-        <Title>💸 Expense Tracker</Title>
+          <Title>💸 Expense Tracker</Title>
           <TotalCard>
             <TotalRow>
               <TotalLabel>Current Balance</TotalLabel>
@@ -406,7 +385,7 @@ export default function ExpenseTracker() {
             </DateIconButton>
           </DateInputContainer>
 
-          {/* Updated Calendar Modal */}
+          {/* Calendar Modal */}
           <Modal
             transparent={true}
             visible={showCalendar}
@@ -445,16 +424,19 @@ export default function ExpenseTracker() {
             onChangeText={(value) => handleChange("description", value)}
           />
 
-          <RNPickerSelect
-            style={pickerSelectStyles}
-            value={form.category}
+          {/* Replace RNPickerSelect with a normal Picker for Category */}
+          <Picker
+            selectedValue={form.category}
             onValueChange={(value) => handleChange("category", value)}
-            items={form.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES}
-            placeholder={{ 
-              label: form.type === 'expense' ? "📌 Select Expense Category" : "📌 Select Income Category", 
-              value: null 
-            }}
-          />
+          >
+            <Picker.Item 
+              label={form.type === 'expense' ? "📌 Select Expense Category" : "📌 Select Income Category"} 
+              value={null} 
+            />
+            {(form.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).map((item, index) => (
+              <Picker.Item key={index} label={item.label} value={item.value} />
+            ))}
+          </Picker>
 
           <Input
             placeholder="💰 Amount (₱)"
@@ -463,17 +445,23 @@ export default function ExpenseTracker() {
             keyboardType="numeric"
           />
 
-          <RNPickerSelect
-            style={pickerSelectStyles}
-            value={form.paymentMethod}
+          {/* Replace RNPickerSelect with a normal Picker for Payment Method */}
+          <Picker
+            selectedValue={form.paymentMethod}
             onValueChange={(value) => handleChange("paymentMethod", value)}
-            items={[
+          >
+            <Picker.Item 
+              label="💳 Select Payment Method" 
+              value={null} 
+            />
+            {[
               { label: "Cash 💵", value: "Cash" },
               { label: "Credit Card 💳", value: "Credit Card" },
               { label: "Bank Transfer 🏦", value: "Bank Transfer" },
-            ]}
-            placeholder={{ label: "💳 Select Payment Method", value: null }}
-          />
+            ].map((item, index) => (
+              <Picker.Item key={index} label={item.label} value={item.value} />
+            ))}
+          </Picker>
 
           <AddButton onPress={addOrUpdateExpense}>
             <ButtonText>
@@ -482,7 +470,7 @@ export default function ExpenseTracker() {
                 : `➕ Add ${form.type === 'income' ? 'Income' : 'Expense'}`
               }
             </ButtonText>
-            </AddButton>
+          </AddButton>
         </FormContainer>
 
         <ExpenseList>
@@ -490,10 +478,7 @@ export default function ExpenseTracker() {
             Recent {form.type === 'income' ? 'Income' : 'Expense'} Transactions
           </ExpenseListHeader>
           {expenses.map((expense) => (
-            <ExpenseItem 
-              key={expense.id}
-              type={expense.type || 'expense'}
-            >
+            <ExpenseItem key={expense.id} type={expense.type || 'expense'}>
               <ExpenseItemHeader>
                 <ExpenseDate>{moment(expense.date).format('MMM D, YYYY')}</ExpenseDate>
                 <ExpenseAmount type={expense.type || 'expense'}>
